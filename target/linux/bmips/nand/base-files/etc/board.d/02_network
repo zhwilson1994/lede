@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+. /lib/functions.sh
+
+case "$(uname -r)" in
+	6.18|6.18.*)
+		case "$(board_name)" in
+			comtrend,vr-3032u) . /lib/bmips/6.18/bcm63268/etc/board.d/02_network ;;
+			netgear,dgnd3700-v2) . /lib/bmips/6.18/bcm6362/etc/board.d/02_network ;;
+			*) . /lib/bmips/legacy/nand/etc/board.d/02_network ;;
+		esac
+		;;
+	*) . /lib/bmips/legacy/nand/etc/board.d/02_network ;;
+esac

@@ -6,7 +6,7 @@ define KernelPackage/ata-ahci-mtk
 	$(LINUX_DIR)/drivers/ata/libahci_platform.ko
   AUTOLOAD:=$(call AutoLoad,40,libahci libahci_platform ahci_mtk,1)
   $(call AddDepends/ata)
-  DEPENDS+=@TARGET_mediatek_mt7622
+  DEPENDS+=@(TARGET_mediatek_mt7622||TARGET_mediatek_mt7623)
 endef
 
 define KernelPackage/ata-ahci-mtk/description
@@ -15,37 +15,43 @@ endef
 
 $(eval $(call KernelPackage,ata-ahci-mtk))
 
-define KernelPackage/sdhci-mtk
+define KernelPackage/btmtkuart
   SUBMENU:=Other modules
-  TITLE:=Mediatek SDHCI driver
-  DEPENDS:=@TARGET_mediatek_mt7622 +kmod-sdhci
-  KCONFIG:=CONFIG_MMC_MTK 
+  TITLE:=MediaTek HCI UART driver
+  DEPENDS:=@TARGET_mediatek_mt7622 +kmod-bluetooth +mt7622bt-firmware
+  KCONFIG:=CONFIG_BT_MTKUART
   FILES:= \
-	$(LINUX_DIR)/drivers/mmc/host/mtk-sd.ko
-  AUTOLOAD:=$(call AutoProbe,mtk-sd,1)
+	$(LINUX_DIR)/drivers/bluetooth/btmtkuart.ko
+  AUTOLOAD:=$(call AutoProbe,btmtkuart)
 endef
 
-$(eval $(call KernelPackage,sdhci-mtk))
+$(eval $(call KernelPackage,btmtkuart))
 
-define KernelPackage/crypto-hw-mtk
-  TITLE:= MediaTek's Crypto Engine module
-  DEPENDS:=@TARGET_mediatek
-  KCONFIG:= \
-	CONFIG_CRYPTO_HW=y \
-	CONFIG_CRYPTO_AES=y \
-	CONFIG_CRYPTO_AEAD=y \
-	CONFIG_CRYPTO_SHA1=y \
-	CONFIG_CRYPTO_SHA256=y \
-	CONFIG_CRYPTO_SHA512=y \
-	CONFIG_CRYPTO_HMAC=y \
-	CONFIG_CRYPTO_DEV_MEDIATEK
-  FILES:=$(LINUX_DIR)/drivers/crypto/mediatek/mtk-crypto.ko
-  AUTOLOAD:=$(call AutoLoad,90,mtk-crypto)
-  $(call AddDepends/crypto)
+define KernelPackage/iio-mt6577-auxadc
+  TITLE:=Mediatek AUXADC driver
+  DEPENDS:=@(TARGET_mediatek_mt7622||TARGET_mediatek_filogic)
+  KCONFIG:=CONFIG_MEDIATEK_MT6577_AUXADC
+  FILES:= \
+	$(LINUX_DIR)/drivers/iio/adc/mt6577_auxadc.ko
+  AUTOLOAD:=$(call AutoProbe,mt6577_auxadc)
+  $(call AddDepends/iio)
+endef
+$(eval $(call KernelPackage,iio-mt6577-auxadc))
+
+
+define KernelPackage/phy-mediatek-2p5g
+  SUBMENU:=$(NETWORK_DEVICES_MENU)
+  TITLE:=MediaTek 2.5G Ethernet PHY
+  DEPENDS:=@TARGET_mediatek_filogic @LINUX_6_18 +kmod-libphy
+  KCONFIG:=CONFIG_MEDIATEK_2P5GE_PHY
+  FILES:= \
+   $(LINUX_DIR)/drivers/net/phy/mediatek/mtk-2p5ge.ko
+  AUTOLOAD:=$(call AutoLoad,18,mtk-2p5ge,1)
 endef
 
-define KernelPackage/crypto-hw-mtk/description
-  MediaTek's EIP97 Cryptographic Engine driver.
+define KernelPackage/phy-mediatek-2p5g/description
+  Kernel modules for 2.5G Ethernet PHY built-into the
+  MediaTek MT7988 and MT7987 SoCs.
 endef
 
-$(eval $(call KernelPackage,crypto-hw-mtk))
+$(eval $(call KernelPackage,phy-mediatek-2p5g))

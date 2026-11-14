@@ -1,4 +1,3 @@
-#!/bin/sh
 
 . /lib/functions.sh
 . /lib/functions/uci-defaults.sh
@@ -13,17 +12,25 @@ ramips_setup_interfaces()
 		ucidef_add_switch "switch0" \
 			"0:lan" "1:lan" "2:lan" "3:lan" "4:wan" "8@eth0"
 		;;
-	belkin,f9k1109v1)
-		ucidef_add_switch "switch0" \
-			"0:lan" "1:lan" "2:lan" "3:lan" "4:wan" "5@eth0"
-		;;
+	asus,rt-n65u|\
 	dlink,dir-645)
 		ucidef_add_switch "switch0" \
 			"1:lan" "2:lan" "3:lan" "4:lan" "0:wan" "6@eth0"
 		;;
+	belkin,f9k1109v1)
+		ucidef_add_switch "switch0" \
+			"0:lan" "1:lan" "2:lan" "3:lan" "4:wan" "5@eth0"
+		;;
 	edimax,br-6475nd)
 		ucidef_add_switch "switch0" \
 			"1:lan" "2:lan" "3:lan" "4:lan" "0:wan" "9@eth0"
+		;;
+	engenius,esr600h|\
+	sitecom,wlr-6000|\
+	trendnet,tew-691gr|\
+	trendnet,tew-692gr)
+		ucidef_add_switch "switch0" \
+			"1:lan" "2:lan" "3:lan" "4:lan" "5:wan" "0@eth0"
 		;;
 	loewe,wmdr-143n|\
 	omnima,hpm)
@@ -32,15 +39,6 @@ ramips_setup_interfaces()
 	samsung,cy-swr1100)
 		ucidef_add_switch "switch0" \
 			"0:lan" "1:lan" "2:lan" "3:lan" "4:wan" "9@eth0"
-		;;
-	sitecom,wlr-6000|\
-	trendnet,tew-691gr|\
-	trendnet,tew-692gr)
-		ucidef_add_switch "switch0" \
-			"1:lan" "2:lan" "3:lan" "4:lan" "5:wan" "0@eth0"
-		;;
-	*)
-		ucidef_set_interfaces_lan_wan "eth0.1" "eth0.2"
 		;;
 	esac
 }
@@ -57,6 +55,10 @@ ramips_setup_macs()
 		lan_mac=$(macaddr_setbit_la "$(cat /sys/class/net/eth0/address)")
 		wan_mac=$(mtd_get_mac_binary factory 0x8004)
 		;;
+	asus,rt-n65u)
+		wan_mac=$(macaddr_add "$(mtd_get_mac_binary factory 0x4)" -4)
+		label_mac=$wan_mac
+		;;
 	belkin,f9k1109v1)
 		wan_mac=$(mtd_get_mac_ascii uboot-env HW_WAN_MAC)
 		lan_mac=$(mtd_get_mac_ascii uboot-env HW_LAN_MAC)
@@ -68,6 +70,11 @@ ramips_setup_macs()
 		;;
 	edimax,br-6475nd)
 		wan_mac=$(mtd_get_mac_binary devdata 0x7)
+		;;
+	engenius,esr600h)
+		wan_mac=$(mtd_get_mac_ascii u-boot-env wanaddr)
+		lan_mac=$(macaddr_add "$wan_mac" 1)
+		label_mac=$wan_mac
 		;;
 	samsung,cy-swr1100)
 		lan_mac=$(mtd_get_mac_ascii nvram lanmac)

@@ -1,0 +1,144 @@
+From: coolsnowwolf <coolsnowwolf@gmail.com>
+Subject: [PATCH] pppd: synchronize authentication across multiple sessions
+
+Signed-off-by: coolsnowwolf <coolsnowwolf@gmail.com>
+---
+--- a/pppd/chap.c
++++ b/pppd/chap.c
+@@ -38,0 +39,3 @@
++#include <semaphore.h>
++#include "syncppp.h"
++
+@@ -515,0 +519,12 @@
++
++	if (npppd > 1) {
++		if (syncppp(npppd) < 0) {
++			error("syncppp sync fail");
++			sem_unlink(SEM_COUNT_NAME);
++			sem_unlink(SEM_BLOCK_NAME);
++		} else {
++			info("syncppp sync succeeded");
++		}
++	} else {
++		info("syncppp not active");
++	}
+--- a/pppd/Makefile.am
++++ b/pppd/Makefile.am
+@@ -67,0 +68 @@
++    syncppp.h \
+@@ -86,0 +88 @@
++    syncppp.c \
+@@ -97 +99 @@
+-pppd_LIBS =
++pppd_LIBS = -lpthread
+--- a/pppd/options.c
++++ b/pppd/options.c
+@@ -143,0 +144 @@
++int	npppd = 0;		/* synchronize between multiple pppd */
+@@ -352,0 +354,3 @@
++
++    { "syncppp", o_int, &npppd,
++      "sync among multiple pppd when sending chap/pap respond", OPT_PRIO },
+--- a/pppd/pppd-private.h
++++ b/pppd/pppd-private.h
+@@ -216,0 +217 @@
++extern int	npppd;		/* synchronize between multiple pppd */
+--- a/pppd/syncppp.c
++++ b/pppd/syncppp.c
+@@ -0,0 +1,71 @@
++#include <stdio.h>
++#include <semaphore.h>
++#include <fcntl.h>
++#include <stdlib.h>
++#include <time.h>
++#include <errno.h>
++#include "pppd-private.h"
++#include "syncppp.h"
++
++int syncppp(int nproc)
++{
++    int flags;
++    int value;
++    sem_t *block;
++    sem_t *count;
++    struct timespec ts;
++
++    if (nproc <= 1) {
++        error("syncppp: number of pppd should be larger than 1");
++        return -1;
++    }
++
++    if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
++        error("clock_gettime error");
++        return -1;
++    }
++    ts.tv_sec += SYNCPPP_TIMEOUT;
++
++    flags = O_RDWR | O_CREAT;
++    block = sem_open(SEM_BLOCK_NAME, flags, 0644, 0);
++    count = sem_open(SEM_COUNT_NAME, flags, 0644, 0);
++    if (block == SEM_FAILED || count == SEM_FAILED) {
++        error("syncppp: sem_open failed");
++        return -1;
++    }
++
++    if (sem_post(count) < 0) {
++        error("syncppp: sem_post failed");
++        return -1;
++    }
++    if (sem_getvalue(count, &value) < 0) {
++        error("syncppp: sem_getvalue failed");
++        return -1;
++    }
++    info("%d pppd have arrived, waiting for the left %d", value, nproc-value);
++    if (value >= nproc) {
++        while (nproc-1 > 0) {
++            if (sem_post(block) < 0) {
++                error("syncppp: sem_post failed");
++                return -1;
++            }
++            nproc--;
++        }
++    } else {
++        if (sem_timedwait(block, &ts) < 0) {
++            if (errno == ETIMEDOUT) {
++                error("syncppp: sem_timewait time out");
++            } else {
++                error("syncppp: sem_timewait error");
++            }
++            return -1;
++        }
++    }
++
++    sem_close(count);
++    sem_close(block);
++    sem_unlink(SEM_COUNT_NAME);
++    sem_unlink(SEM_BLOCK_NAME);
++
++    return 0;
++}
+--- a/pppd/syncppp.h
++++ b/pppd/syncppp.h
+@@ -0,0 +1,4 @@
++#define SEM_BLOCK_NAME  "block"
++#define SEM_COUNT_NAME  "count"
++#define SYNCPPP_TIMEOUT 5
++extern int syncppp(int nproc);
+--- a/pppd/upap.c
++++ b/pppd/upap.c
+@@ -57,0 +58,2 @@
++#include <semaphore.h>
++#include "syncppp.h"
+@@ -546,0 +549,12 @@
++
++    if (npppd > 1) {
++        if (syncppp(npppd) < 0) {
++            error("syncppp sync fail");
++            sem_unlink(SEM_COUNT_NAME);
++            sem_unlink(SEM_BLOCK_NAME);
++        } else {
++            info("syncppp sync succeeded");
++        }
++    } else {
++        info("syncppp not active");
++    }

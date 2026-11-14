@@ -1,24 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Copyright (C) 2006-2013 OpenWrt.org
-#
-# This is free software, licensed under the GNU General Public License v2.
-# See /LICENSE for more information.
-#
+
 include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/image.mk
 
 KERNEL_LOADADDR := 0x20008000
 
 define Build/at91-install-zImage
-    $(CP) $(KDIR)/zImage $@
+	$(CP) $(KDIR)/zImage $@
 endef
 
-ifeq ($(SUBTARGET),sam9x)
-include ./sam9x.mk
-endif
-ifeq ($(SUBTARGET),sama5)
-include ./sama5.mk
-endif
+include $(SUBTARGET).mk
 
 AT91_SD_BOOT_PARTSIZE:=64
 FAT32_BLOCK_SIZE:=1024
@@ -29,7 +22,8 @@ define Device/Default
   $(Device/default-nand)
   PROFILES := Default
   FILESYSTEMS := squashfs ubifs ext4
-  DEVICE_DTS := $(1)
+  DEVICE_DTS = $(lastword $(subst _, ,$(1)))
+  DTS_DIR := $(DTS_DIR)$(if $(filter 6.18,$(KERNEL_PATCHVER)),/microchip)
   KERNEL_NAME := zImage
   KERNEL_SIZE := 4096k
   KERNEL := kernel-bin | append-dtb | lzma | uImage lzma
@@ -43,6 +37,7 @@ endef
 define Device/evaluation-sdimage
   IMAGES += sdcard.img.gz
   IMAGE/sdcard.img.gz := at91-sdcard
+  FILESYSTEMS/sdcard.img.gz := ext4
 endef
 
 define Device/evaluation
@@ -50,6 +45,7 @@ define Device/evaluation
   KERNEL_SUFFIX := -uImage
   IMAGES := root.ubi
   IMAGE/root.ubi := append-ubi
+  FILESYSTEMS/root.ubi := squashfs ubifs
 endef
 
 define Device/evaluation-zImage
@@ -60,30 +56,28 @@ endef
 define Device/evaluation-dtb
   $(Device/evaluation)
   $(Device/dtb)
-  $(Device/evaluation-zImage)
-  IMAGES += dtb
-  IMAGE/dtb := install-dtb
   KERNEL_SUFFIX := -fit-zImage.itb
-  KERNEL := kernel-bin | gzip | fit gzip $$(DTS_DIR)/$$(DEVICE_DTS).dtb
+  KERNEL = kernel-bin | gzip | fit gzip $$(KDIR)/image-$$(DEVICE_DTS).dtb
 endef
 
 define Device/evaluation-fit
   $(Device/evaluation)
   KERNEL_SUFFIX := -fit-uImage.itb
-  KERNEL := kernel-bin | lzma | fit lzma $$(DTS_DIR)/$$(DEVICE_DTS).dtb
+  KERNEL = kernel-bin | lzma | fit lzma $$(KDIR)/image-$$(DEVICE_DTS).dtb
 endef
 
 define Device/production
   UBINIZE_OPTS := -E 5
   IMAGES := factory.bin
   IMAGE/factory.bin := append-kernel | pad-to $$$$(KERNEL_SIZE) | append-ubi
+  FILESYSTEMS/factory.bin := squashfs ubifs
 endef
 
 define Device/production-dtb
   $(Device/production)
   $(Device/dtb)
-  IMAGE/factory.bin := append-dtb | pad-to $$$$(DTB_SIZE) \
-	  | append-kernel | pad-to $$$$(KERNEL_SIZE) | append-ubi
+  IMAGE/factory.bin := append-dtb | pad-to $$$$(DTB_SIZE) | \
+	append-kernel | pad-to $$$$(KERNEL_SIZE) | append-ubi
 endef
 
 $(eval $(call BuildImage))

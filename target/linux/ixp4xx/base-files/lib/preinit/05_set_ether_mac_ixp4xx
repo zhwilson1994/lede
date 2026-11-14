@@ -1,32 +1,42 @@
 #!/bin/sh
+. /lib/functions.sh
+. /lib/functions/system.sh
 
-set_ether_mac() {
-
-	RB_CONFIG="$(grep "RedBoot config" /proc/mtd | cut -d: -f1)"
-
+set_from_redboot () {
 	for npe in eth0 eth1 eth2
 	do
-		if [ "$(ifconfig $npe 2>/dev/null | grep -c 00:00:00:00:00:00)" = "1" ]; then
-			ifconfig $npe hw ether $(fconfig -s -r -d /dev/$RB_CONFIG -n npe_"$npe"_esa)
+		mac="$(fconfig -s -r -d /dev/$1 -n npe_"$npe"_esa)"
+		if [ -z $mac ] ; then
+			mac="$(fconfig -s -r -d /dev/$1 -n zcom_npe_esa)"
+		fi
+		if ip link show dev $npe > /dev/null 2>&1; then
+			ip link set dev $npe address $mac
 		fi
 	done
 
-	# Some developers should be shot on sight at Zcom/Netgear
-	# -- Fixup for the WG302v1, need someone with a WAG302v1 to fix that, too
-
-	if [ "$(ifconfig eth0 2>/dev/null | grep -c 00:00:00:00:00:00)" = "1" ]; then
-			ifconfig eth0 hw ether $(fconfig -s -r -d /dev/$RB_CONFIG -n zcom_npe_esa)
+	# Devices with MAC address set blank: set a dummy value.
+	if [ "$(ip link show dev eth0 2>/dev/null | grep -c 00:00:00:00:00:00)" = "1" ]; then
+		ip link set dev eth0 address 00:11:22:33:44:55
 	fi
-
-	# Others (*cough*, Tonze) are dumb enough to not handle mac addresses at all
-
-	if [ "$(ifconfig eth0 2>/dev/null | grep -c 00:00:00:00:00:00)" = "1" ]; then
-		ifconfig eth0 hw ether 00:11:22:33:44:55
+	if [ "$(ip link show dev eth1 2>/dev/null | grep -c 00:00:00:00:00:00)" = "1" ]; then
+		ip link set dev eth0 address 00:11:22:33:44:56
 	fi
-	if [ "$(ifconfig eth1 2>/dev/null | grep -c 00:00:00:00:00:00)" = "1" ]; then
-		ifconfig eth1 hw ether 00:11:22:33:44:56
+}
+
+set_from_sysconf () {
+	ip link set dev eth0 address $(mtd_get_mac_ascii SysConf hw_addr)
+}
+
+set_ether_mac () {
+	RBC="$(grep "RedBoot config" /proc/mtd | cut -d: -f1)"
+	if [ ! -z $RBC ] ; then
+		set_from_redboot $RBC
+	else
+		SYSC="$(grep "SysConf" /proc/mtd | cut -d: -f1)"
+		if [ ! -z $SYSC ] ; then
+			set_from_sysconf
+		fi
 	fi
 }
 
 boot_hook_add preinit_main set_ether_mac
-

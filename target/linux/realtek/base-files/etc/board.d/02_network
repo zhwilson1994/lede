@@ -1,0 +1,10 @@
+
+
+case "$(uname -r)" in
+	6.18|6.18.*)
+		. /lib/realtek/6.18/network.sh
+		;;
+	*)
+		. /lib/realtek/legacy/network.sh
+		;;
+esac

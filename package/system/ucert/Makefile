@@ -5,9 +5,9 @@ PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL=$(PROJECT_GIT)/project/ucert.git
-PKG_SOURCE_DATE:=2018-09-18
-PKG_SOURCE_VERSION:=e1c722b1b6cbf2527b3178342464e56b97825874
-PKG_MIRROR_HASH:=36dcca7c2d649a6c34a8daaaef4698fbeb808fd6580c6bfb1ca35f4f06825d17
+PKG_SOURCE_DATE:=2025-10-03
+PKG_SOURCE_VERSION:=57270b247c91f003db6e3ba1a71d6d1fa5710fef
+PKG_MIRROR_HASH:=e1e7f781f865bbee703e7e9e3be549decebe370f53fb068e8e685d325a5c8150
 
 CMAKE_INSTALL:=1
 PKG_CHECK_FORMAT_SECURITY:=1
@@ -16,8 +16,6 @@ PKG_LICENSE:=GPL-3.0+
 PKG_LICENSE_FILES:=COPYING
 
 PKG_MAINTAINER:=Daniel Golle <daniel@makrotopia.org>
-
-PKG_BUILD_DIR=$(BUILD_DIR)/$(PKG_NAME)-$(BUILD_VARIANT)/$(PKG_NAME)-$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/host-build.mk
@@ -33,22 +31,25 @@ HOST_BUILD_DEPENDS:=libubox/host libjson-c/host usign/host
 HOST_BUILD_PREFIX:=$(STAGING_DIR_HOST)
 PKG_BUILD_DEPENDS:=ucert/host
 
-define Package/ucert-full
-  SECTION:=base
-  CATEGORY:=Base system
-  DEPENDS:=+usign +libubox +libjson-c +libblobmsg-json
-  TITLE:=OpenWrt certificate generation and verification utility
-  PROVIDES:=ucert
-  VARIANT:=full
-endef
-
-define Package/ucert
+define Package/ucert/Default
   SECTION:=base
   CATEGORY:=Base system
   DEPENDS:=+usign +libubox
+endef
+
+define Package/ucert
+$(call Package/ucert/Default)
   TITLE:=OpenWrt certificate verification utility
-  CONFLICTS:=ucert-full
   VARIANT:=tiny
+  DEFAULT_VARIANT:=1
+endef
+
+define Package/ucert-full
+$(call Package/ucert/Default)
+  TITLE:=OpenWrt certificate generation and verification utility
+  DEPENDS+=+libjson-c +libblobmsg-json
+  VARIANT:=full
+  PROVIDES:=ucert
 endef
 
 ifeq ($(BUILD_VARIANT),full)

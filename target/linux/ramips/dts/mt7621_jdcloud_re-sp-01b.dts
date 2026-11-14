@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
-/dts-v1/;
 
 #include "mt7621.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	compatible = "jdcloud,re-sp-01b", "mediatek,mt7621-soc";
 	model = "JDCloud RE-SP-01B";
 
 	aliases {
-		led-boot = &led_red;
-		led-failsafe = &led_red;
-		led-running = &led_green;
-		led-upgrade = &led_blue;
-		label-mac-device = &ethernet;
+		led-boot = &led_status_red;
+		led-failsafe = &led_status_red;
+		led-running = &led_status_green;
+		led-upgrade = &led_status_blue;
 	};
 
 	chosen {
@@ -27,7 +26,7 @@
 
 		reset {
 			label = "reset";
-			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 18 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_RESTART>;
 		};
 	};
@@ -35,20 +34,22 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led_red: red {
-			label = "jdcloud:red:sys";
-			gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
-			panic-indicator;
+		led_status_red: led-red {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio 6 GPIO_ACTIVE_LOW>;
 		};
 
-		led_green: green {
-			label = "jdcloud:green:sys";
-			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
+		led_status_green: led-green {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio 8 GPIO_ACTIVE_LOW>;
 		};
 
-		led_blue: blue {
-			label = "jdcloud:blue:sys";
-			gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
+		led_status_blue: led-blue {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_BLUE>;
+			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -76,16 +77,30 @@
 				read-only;
 			};
 
-			config: partition@30000 {
+			partition@30000 {
 				label = "config";
 				reg = <0x30000 0x10000>;
 				read-only;
 			};
 
-			factory: partition@40000 {
+			partition@40000 {
 				label = "factory";
 				reg = <0x40000 0x10000>;
 				read-only;
+
+				nvmem-layout {
+					compatible = "fixed-layout";
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					eeprom_factory_0: eeprom@0 {
+						reg = <0x0 0x400>;
+					};
+
+					eeprom_factory_8000: eeprom@8000 {
+						reg = <0x8000 0x4da8>;
+					};
+				};
 			};
 
 			partition@50000 {
@@ -109,8 +124,30 @@
 	};
 };
 
-&ethernet {
-	mtd-mac-address-ascii = <&config 0x4429>;
+&gmac1 {
+	status = "okay";
+	label = "wan";
+	phy-handle = <&ethphy0>;
+};
+
+&ethphy0 {
+	/delete-property/ interrupts;
+};
+
+&gsw {
+
+		port@1 {
+		compatible = "mediatek,mt753x-port";
+			status = "okay";
+			label = "lan1";
+		};
+
+		port@2 {
+		compatible = "mediatek,mt753x-port";
+			status = "okay";
+			label = "lan2";
+		};
+
 };
 
 &pcie {
@@ -119,26 +156,26 @@
 
 &pcie0 {
 	wifi@0,0 {
+		compatible = "mediatek,mt76";
 		reg = <0x0000 0 0 0 0>;
-		mtd-mac-address-ascii = <&config 0x4429>;
-		mediatek,mtd-eeprom = <&factory 0x0>;
+		nvmem-cells = <&eeprom_factory_0>;
+		nvmem-cell-names = "eeprom";
 	};
 };
 
 &pcie1 {
 	wifi@0,0 {
+		compatible = "mediatek,mt76";
 		reg = <0x0000 0 0 0 0>;
-		mtd-mac-address-ascii = <&config 0x4429>;
-		mtd-mac-address-increment = <0x80>;
-		mtd-mac-address-increment-byte = <3>;
-		mediatek,mtd-eeprom = <&factory 0x8000>;
+		nvmem-cells = <&eeprom_factory_8000>;
+		nvmem-cell-names = "eeprom";
 		ieee80211-freq-limit = <5000000 6000000>;
 	};
 };
 
 &state_default {
 	gpio {
-		ralink,group = "uart2", "uart3", "wdt";
-		ralink,function = "gpio";
+		groups = "uart2", "uart3", "wdt";
+		function = "gpio";
 	};
 };

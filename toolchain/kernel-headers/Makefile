@@ -17,11 +17,23 @@ include $(INCLUDE_DIR)/kernel.mk
 PKG_NAME:=linux
 PKG_VERSION:=$(LINUX_VERSION)
 PKG_SOURCE:=$(LINUX_SOURCE)
-ifneq ($(strip $(CONFIG_KERNEL_GIT_CLONE_URI)),"")
+PKG_CPE_ID:=cpe:/o:linux:linux_kernel
+ifneq ($(call qstrip,$(CONFIG_KERNEL_GIT_CLONE_URI)),)
   PKG_SOURCE_PROTO:=git
   PKG_SOURCE_URL:=$(call qstrip,$(CONFIG_KERNEL_GIT_CLONE_URI))
-  PKG_SOURCE_VERSION:=$(CONFIG_KERNEL_GIT_REF)
+  PKG_SOURCE_VERSION:=$(call qstrip,$(CONFIG_KERNEL_GIT_REF))
+  PKG_MIRROR_HASH:=$(call qstrip,$(CONFIG_KERNEL_GIT_MIRROR_HASH))
+ifdef CHECK
+  PLATFORM_DIR:=$(firstword $(wildcard $(TOPDIR)/target/linux/feeds/$(BOARD) $(TOPDIR)/target/linux/$(BOARD)))
+  include $(PLATFORM_DIR)/Makefile
+  include $(INCLUDE_DIR)/kernel-version.mk
+  include $(INCLUDE_DIR)/kernel-build.mk
+  PKG_VERSION:=$(LINUX_VERSION)
 else
+  PKG_SOURCE:=$(LINUX_SOURCE)
+endif
+else
+  PKG_SOURCE:=$(LINUX_SOURCE)
   PKG_SOURCE_URL:=$(LINUX_SITE)
 endif
 HOST_BUILD_DIR:=$(KERNEL_BUILD_DIR)/linux-$(LINUX_VERSION)
@@ -41,14 +53,14 @@ HOST_EXTRACFLAGS=
 
 LINUX_HAS_HEADERS_INSTALL:=y
 
-KMAKE := $(MAKE) -C $(HOST_BUILD_DIR) \
+HOST_KMAKE := $(MAKE) -C $(HOST_BUILD_DIR) \
 	$(KERNEL_MAKE_FLAGS) \
 	CC="$(KERNEL_CC)" \
-	CFLAGS="$(TARGET_CFLAGS)"
+	HOSTCFLAGS="$(HOST_CFLAGS)"
 
 define Host/Configure/all
 	mkdir -p $(BUILD_DIR_TOOLCHAIN)/linux-dev
-	$(KMAKE) \
+	$(HOST_KMAKE) \
 		INSTALL_HDR_PATH="$(BUILD_DIR_TOOLCHAIN)/linux-dev/" \
 		headers_install
 endef
@@ -60,6 +72,7 @@ ifneq ($(CONFIG_mips)$(CONFIG_mipsel),)
 		$(HOST_BUILD_DIR)/arch/mips/include/asm/asm.h \
 		$(HOST_BUILD_DIR)/arch/mips/include/asm/regdef.h \
 		$(HOST_BUILD_DIR)/arch/mips/include/asm/asm-eva.h \
+		$(HOST_BUILD_DIR)/arch/mips/include/asm/isa-rev.h \
 		$(BUILD_DIR_TOOLCHAIN)/linux-dev/include/asm/
   endef
 endif
@@ -81,8 +94,7 @@ define Host/Prepare
 endef
 
 define Host/Configure
-	env
-	yes '' | $(KMAKE) oldconfig
+	yes '' | $(HOST_KMAKE) oldconfig
 	$(call Host/Configure/all)
 	$(call Host/Configure/post/$(ARCH))
 endef

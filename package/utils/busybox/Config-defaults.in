@@ -24,10 +24,13 @@ config BUSYBOX_DEFAULT_FEATURE_VERBOSE_USAGE
 	default y
 config BUSYBOX_DEFAULT_FEATURE_COMPRESS_USAGE
 	bool
-	default y
+	default n
 config BUSYBOX_DEFAULT_LFS
 	bool
 	default y
+config BUSYBOX_DEFAULT_TIME64
+	bool
+	default n
 config BUSYBOX_DEFAULT_PAM
 	bool
 	default n
@@ -55,12 +58,15 @@ config BUSYBOX_DEFAULT_FEATURE_SHOW_SCRIPT
 config BUSYBOX_DEFAULT_FEATURE_INSTALLER
 	bool
 	default n
+config BUSYBOX_DEFAULT_FEATURE_VERSION
+	bool
+	default n
 config BUSYBOX_DEFAULT_INSTALL_NO_USR
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_SUID
 	bool
-	default y
+	default n
 config BUSYBOX_DEFAULT_FEATURE_SUID_CONFIG
 	bool
 	default n
@@ -79,10 +85,10 @@ config BUSYBOX_DEFAULT_SELINUX
 config BUSYBOX_DEFAULT_FEATURE_CLEAN_UP
 	bool
 	default n
-config BUSYBOX_DEFAULT_FEATURE_SYSLOG
+config BUSYBOX_DEFAULT_FEATURE_SYSLOG_INFO
 	bool
-	default y
-config BUSYBOX_DEFAULT_PLATFORM_LINUX
+	default n
+config BUSYBOX_DEFAULT_FEATURE_SYSLOG
 	bool
 	default y
 config BUSYBOX_DEFAULT_STATIC
@@ -127,6 +133,9 @@ config BUSYBOX_DEFAULT_USE_PORTABLE_CODE
 config BUSYBOX_DEFAULT_STACK_OPTIMIZATION_386
 	bool
 	default n
+config BUSYBOX_DEFAULT_STATIC_LIBGCC
+	bool
+	default n
 config BUSYBOX_DEFAULT_INSTALL_APPLET_SYMLINKS
 	bool
 	default y
@@ -166,6 +175,9 @@ config BUSYBOX_DEFAULT_UNIT_TEST
 config BUSYBOX_DEFAULT_WERROR
 	bool
 	default n
+config BUSYBOX_DEFAULT_WARN_SIMPLE_MSG
+	bool
+	default n
 config BUSYBOX_DEFAULT_NO_DEBUG_LIB
 	bool
 	default y
@@ -202,18 +214,36 @@ config BUSYBOX_DEFAULT_PASSWORD_MINLEN
 config BUSYBOX_DEFAULT_MD5_SMALL
 	int
 	default 1
+config BUSYBOX_DEFAULT_SHA1_SMALL
+	int
+	default 3
+config BUSYBOX_DEFAULT_SHA1_HWACCEL
+	bool
+	default y
+config BUSYBOX_DEFAULT_SHA256_HWACCEL
+	bool
+	default y
 config BUSYBOX_DEFAULT_SHA3_SMALL
 	int
 	default 1
-config BUSYBOX_DEFAULT_FEATURE_FAST_TOP
+config BUSYBOX_DEFAULT_FEATURE_NON_POSIX_CP
 	bool
 	default y
-config BUSYBOX_DEFAULT_FEATURE_ETC_NETWORKS
+config BUSYBOX_DEFAULT_FEATURE_VERBOSE_CP_MESSAGE
 	bool
 	default n
-config BUSYBOX_DEFAULT_FEATURE_ETC_SERVICES
+config BUSYBOX_DEFAULT_FEATURE_USE_SENDFILE
 	bool
-	default n
+	default y
+config BUSYBOX_DEFAULT_FEATURE_COPYBUF_KB
+	int
+	default 4
+config BUSYBOX_DEFAULT_MONOTONIC_SYSCALL
+	bool
+	default y
+config BUSYBOX_DEFAULT_IOCTL_HEX2STR_ERROR
+	bool
+	default y
 config BUSYBOX_DEFAULT_FEATURE_EDITING
 	bool
 	default y
@@ -228,10 +258,10 @@ config BUSYBOX_DEFAULT_FEATURE_EDITING_HISTORY
 	default 256
 config BUSYBOX_DEFAULT_FEATURE_EDITING_SAVEHISTORY
 	bool
-	default n
+	default y
 config BUSYBOX_DEFAULT_FEATURE_EDITING_SAVE_ON_EXIT
 	bool
-	default n
+	default y
 config BUSYBOX_DEFAULT_FEATURE_REVERSE_SEARCH
 	bool
 	default n
@@ -283,30 +313,15 @@ config BUSYBOX_DEFAULT_UNICODE_NEUTRAL_TABLE
 config BUSYBOX_DEFAULT_UNICODE_PRESERVE_BROKEN
 	bool
 	default n
-config BUSYBOX_DEFAULT_FEATURE_NON_POSIX_CP
+config BUSYBOX_DEFAULT_LOOP_CONFIGURE
+	bool
+	default n
+config BUSYBOX_DEFAULT_NO_LOOP_CONFIGURE
+	bool
+	default n
+config BUSYBOX_DEFAULT_TRY_LOOP_CONFIGURE
 	bool
 	default y
-config BUSYBOX_DEFAULT_FEATURE_VERBOSE_CP_MESSAGE
-	bool
-	default n
-config BUSYBOX_DEFAULT_FEATURE_USE_SENDFILE
-	bool
-	default y
-config BUSYBOX_DEFAULT_FEATURE_COPYBUF_KB
-	int
-	default 4
-config BUSYBOX_DEFAULT_FEATURE_SKIP_ROOTFS
-	bool
-	default n
-config BUSYBOX_DEFAULT_MONOTONIC_SYSCALL
-	bool
-	default n
-config BUSYBOX_DEFAULT_IOCTL_HEX2STR_ERROR
-	bool
-	default y
-config BUSYBOX_DEFAULT_FEATURE_HWIB
-	bool
-	default n
 config BUSYBOX_DEFAULT_FEATURE_SEAMLESS_XZ
 	bool
 	default n
@@ -345,10 +360,10 @@ config BUSYBOX_DEFAULT_FEATURE_GUNZIP_LONG_OPTIONS
 	default n
 config BUSYBOX_DEFAULT_BUNZIP2
 	bool
-	default y
+	default n
 config BUSYBOX_DEFAULT_BZCAT
 	bool
-	default y
+	default n
 config BUSYBOX_DEFAULT_UNLZMA
 	bool
 	default n
@@ -375,7 +390,7 @@ config BUSYBOX_DEFAULT_BZIP2_SMALL
 	default 0
 config BUSYBOX_DEFAULT_FEATURE_BZIP2_DECOMPRESS
 	bool
-	default y
+	default n
 config BUSYBOX_DEFAULT_CPIO
 	bool
 	default n
@@ -383,6 +398,12 @@ config BUSYBOX_DEFAULT_FEATURE_CPIO_O
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_CPIO_P
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_CPIO_IGNORE_DEVNO
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_CPIO_RENUMBER_INODES
 	bool
 	default n
 config BUSYBOX_DEFAULT_DPKG
@@ -478,6 +499,21 @@ config BUSYBOX_DEFAULT_FEATURE_UNZIP_XZ
 config BUSYBOX_DEFAULT_FEATURE_LZMA_FAST
 	bool
 	default n
+config BUSYBOX_DEFAULT_FEATURE_PATH_TRAVERSAL_PROTECTION
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_VERBOSE
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_TIMEZONE
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_PRESERVE_HARDLINKS
+	bool
+	default y
+config BUSYBOX_DEFAULT_FEATURE_HUMAN_READABLE
+	bool
+	default y
 config BUSYBOX_DEFAULT_BASENAME
 	bool
 	default y
@@ -508,6 +544,9 @@ config BUSYBOX_DEFAULT_CHROOT
 config BUSYBOX_DEFAULT_CKSUM
 	bool
 	default n
+config BUSYBOX_DEFAULT_CRC32
+	bool
+	default n
 config BUSYBOX_DEFAULT_COMM
 	bool
 	default n
@@ -523,6 +562,9 @@ config BUSYBOX_DEFAULT_FEATURE_CP_REFLINK
 config BUSYBOX_DEFAULT_CUT
 	bool
 	default y
+config BUSYBOX_DEFAULT_FEATURE_CUT_REGEX
+	bool
+	default n
 config BUSYBOX_DEFAULT_DATE
 	bool
 	default y
@@ -554,6 +596,9 @@ config BUSYBOX_DEFAULT_DF
 	bool
 	default y
 config BUSYBOX_DEFAULT_FEATURE_DF_FANCY
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_SKIP_ROOTFS
 	bool
 	default n
 config BUSYBOX_DEFAULT_DIRNAME
@@ -601,9 +646,6 @@ config BUSYBOX_DEFAULT_FALSE
 config BUSYBOX_DEFAULT_FOLD
 	bool
 	default n
-config BUSYBOX_DEFAULT_FSYNC
-	bool
-	default y
 config BUSYBOX_DEFAULT_HEAD
 	bool
 	default y
@@ -673,6 +715,9 @@ config BUSYBOX_DEFAULT_SHA1SUM
 config BUSYBOX_DEFAULT_SHA256SUM
 	bool
 	default y
+config BUSYBOX_DEFAULT_SHA384SUM
+	bool
+	default n
 config BUSYBOX_DEFAULT_SHA512SUM
 	bool
 	default n
@@ -790,6 +835,9 @@ config BUSYBOX_DEFAULT_SYNC
 config BUSYBOX_DEFAULT_FEATURE_SYNC_FANCY
 	bool
 	default n
+config BUSYBOX_DEFAULT_FSYNC
+	bool
+	default y
 config BUSYBOX_DEFAULT_TAC
 	bool
 	default n
@@ -819,13 +867,10 @@ config BUSYBOX_DEFAULT_FEATURE_TEST_64
 	default y
 config BUSYBOX_DEFAULT_TIMEOUT
 	bool
-	default n
+	default y
 config BUSYBOX_DEFAULT_TOUCH
 	bool
 	default y
-config BUSYBOX_DEFAULT_FEATURE_TOUCH_NODEREF
-	bool
-	default n
 config BUSYBOX_DEFAULT_FEATURE_TOUCH_SUSV3
 	bool
 	default y
@@ -842,6 +887,10 @@ config BUSYBOX_DEFAULT_TRUE
 	bool
 	default y
 config BUSYBOX_DEFAULT_TRUNCATE
+	bool
+	default y if TARGET_bcm53xx
+	default n
+config BUSYBOX_DEFAULT_TSORT
 	bool
 	default n
 config BUSYBOX_DEFAULT_TTY
@@ -866,6 +915,9 @@ config BUSYBOX_DEFAULT_USLEEP
 	bool
 	default n
 config BUSYBOX_DEFAULT_UUDECODE
+	bool
+	default n
+config BUSYBOX_DEFAULT_BASE32
 	bool
 	default n
 config BUSYBOX_DEFAULT_BASE64
@@ -893,15 +945,6 @@ config BUSYBOX_DEFAULT_WHOAMI
 	bool
 	default n
 config BUSYBOX_DEFAULT_YES
-	bool
-	default y
-config BUSYBOX_DEFAULT_FEATURE_VERBOSE
-	bool
-	default n
-config BUSYBOX_DEFAULT_FEATURE_PRESERVE_HARDLINKS
-	bool
-	default y
-config BUSYBOX_DEFAULT_FEATURE_HUMAN_READABLE
 	bool
 	default y
 config BUSYBOX_DEFAULT_CHVT
@@ -951,7 +994,7 @@ config BUSYBOX_DEFAULT_RESET
 	default y
 config BUSYBOX_DEFAULT_RESIZE
 	bool
-	default n
+	default y
 config BUSYBOX_DEFAULT_FEATURE_RESIZE_PRINT
 	bool
 	default n
@@ -1048,6 +1091,9 @@ config BUSYBOX_DEFAULT_FEATURE_VI_8BIT
 config BUSYBOX_DEFAULT_FEATURE_VI_COLON
 	bool
 	default y
+config BUSYBOX_DEFAULT_FEATURE_VI_COLON_EXPAND
+	bool
+	default n
 config BUSYBOX_DEFAULT_FEATURE_VI_YANKMARK
 	bool
 	default y
@@ -1087,6 +1133,9 @@ config BUSYBOX_DEFAULT_FEATURE_VI_UNDO_QUEUE
 config BUSYBOX_DEFAULT_FEATURE_VI_UNDO_QUEUE_MAX
 	int
 	default 0
+config BUSYBOX_DEFAULT_FEATURE_VI_VERBOSE_STATUS
+	bool
+	default n
 config BUSYBOX_DEFAULT_FEATURE_ALLOW_EXEC
 	bool
 	default y
@@ -1099,7 +1148,19 @@ config BUSYBOX_DEFAULT_FEATURE_FIND_PRINT0
 config BUSYBOX_DEFAULT_FEATURE_FIND_MTIME
 	bool
 	default y
+config BUSYBOX_DEFAULT_FEATURE_FIND_ATIME
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_FIND_CTIME
+	bool
+	default n
 config BUSYBOX_DEFAULT_FEATURE_FIND_MMIN
+	bool
+	default y
+config BUSYBOX_DEFAULT_FEATURE_FIND_AMIN
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_FIND_CMIN
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_FIND_PERM
@@ -1123,10 +1184,16 @@ config BUSYBOX_DEFAULT_FEATURE_FIND_NEWER
 config BUSYBOX_DEFAULT_FEATURE_FIND_INUM
 	bool
 	default n
+config BUSYBOX_DEFAULT_FEATURE_FIND_SAMEFILE
+	bool
+	default n
 config BUSYBOX_DEFAULT_FEATURE_FIND_EXEC
 	bool
 	default y
 config BUSYBOX_DEFAULT_FEATURE_FIND_EXEC_PLUS
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_FIND_EXEC_OK
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_FIND_USER
@@ -1154,6 +1221,9 @@ config BUSYBOX_DEFAULT_FEATURE_FIND_QUIT
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_FIND_DELETE
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_FIND_EMPTY
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_FIND_PATH
@@ -1278,6 +1348,9 @@ config BUSYBOX_DEFAULT_USE_BB_CRYPT
 	default n
 config BUSYBOX_DEFAULT_USE_BB_CRYPT_SHA
 	bool
+	default y
+config BUSYBOX_DEFAULT_USE_BB_CRYPT_YES
+	bool
 	default n
 config BUSYBOX_DEFAULT_ADD_SHELL
 	bool
@@ -1311,7 +1384,7 @@ config BUSYBOX_DEFAULT_CHPASSWD
 	default n
 config BUSYBOX_DEFAULT_FEATURE_DEFAULT_PASSWD_ALGO
 	string
-	default "md5"
+	default "sha256"
 config BUSYBOX_DEFAULT_CRYPTPW
 	bool
 	default n
@@ -1510,6 +1583,9 @@ config BUSYBOX_DEFAULT_FDISK
 config BUSYBOX_DEFAULT_FDISK_SUPPORT_LARGE_DISKS
 	bool
 	default n
+config BUSYBOX_DEFAULT_FEATURE_FDISK_BLKSIZE
+	bool
+	default n
 config BUSYBOX_DEFAULT_FEATURE_FDISK_WRITABLE
 	bool
 	default n
@@ -1561,9 +1637,6 @@ config BUSYBOX_DEFAULT_FEATURE_GETOPT_LONG
 config BUSYBOX_DEFAULT_HEXDUMP
 	bool
 	default y
-config BUSYBOX_DEFAULT_FEATURE_HEXDUMP_REVERSE
-	bool
-	default n
 config BUSYBOX_DEFAULT_HD
 	bool
 	default n
@@ -1594,6 +1667,9 @@ config BUSYBOX_DEFAULT_FEATURE_LAST_FANCY
 config BUSYBOX_DEFAULT_LOSETUP
 	bool
 	default n
+config BUSYBOX_DEFAULT_LSBLK
+	bool
+	default n
 config BUSYBOX_DEFAULT_LSPCI
 	bool
 	default n
@@ -1616,6 +1692,9 @@ config BUSYBOX_DEFAULT_FEATURE_MDEV_EXEC
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_MDEV_LOAD_FIRMWARE
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_MDEV_DAEMON
 	bool
 	default n
 config BUSYBOX_DEFAULT_MESG
@@ -1746,19 +1825,19 @@ config BUSYBOX_DEFAULT_FEATURE_SETPRIV_CAPABILITY_NAMES
 	default n
 config BUSYBOX_DEFAULT_SETSID
 	bool
-	default n
+	default y
 config BUSYBOX_DEFAULT_SWAPON
 	bool
-	default n
+	default y
 config BUSYBOX_DEFAULT_FEATURE_SWAPON_DISCARD
 	bool
-	default n
+	default y
 config BUSYBOX_DEFAULT_FEATURE_SWAPON_PRI
 	bool
-	default n
+	default y
 config BUSYBOX_DEFAULT_SWAPOFF
 	bool
-	default n
+	default y
 config BUSYBOX_DEFAULT_FEATURE_SWAPONOFF_LABEL
 	bool
 	default n
@@ -1767,10 +1846,13 @@ config BUSYBOX_DEFAULT_SWITCH_ROOT
 	default y
 config BUSYBOX_DEFAULT_TASKSET
 	bool
-	default n
+	default y
 config BUSYBOX_DEFAULT_FEATURE_TASKSET_FANCY
 	bool
-	default n
+	default y
+config BUSYBOX_DEFAULT_FEATURE_TASKSET_CPULIST
+	bool
+	default y
 config BUSYBOX_DEFAULT_UEVENT
 	bool
 	default n
@@ -1781,6 +1863,9 @@ config BUSYBOX_DEFAULT_FEATURE_UMOUNT_ALL
 	bool
 	default y
 config BUSYBOX_DEFAULT_UNSHARE
+	bool
+	default n
+config BUSYBOX_DEFAULT_UUIDGEN
 	bool
 	default n
 config BUSYBOX_DEFAULT_WALL
@@ -1805,6 +1890,9 @@ config BUSYBOX_DEFAULT_FEATURE_VOLUMEID_BTRFS
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_VOLUMEID_CRAMFS
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_VOLUMEID_EROFS
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_VOLUMEID_EXFAT
@@ -1874,6 +1962,9 @@ config BUSYBOX_DEFAULT_FEATURE_VOLUMEID_XFS
 	bool
 	default n
 config BUSYBOX_DEFAULT_ADJTIMEX
+	bool
+	default n
+config BUSYBOX_DEFAULT_ASCII
 	bool
 	default n
 config BUSYBOX_DEFAULT_BBCONFIG
@@ -1987,6 +2078,9 @@ config BUSYBOX_DEFAULT_FLASH_UNLOCK
 config BUSYBOX_DEFAULT_FLASHCP
 	bool
 	default n
+config BUSYBOX_DEFAULT_GETFATTR
+	bool
+	default n
 config BUSYBOX_DEFAULT_HDPARM
 	bool
 	default n
@@ -2021,6 +2115,9 @@ config BUSYBOX_DEFAULT_I2CDUMP
 	bool
 	default n
 config BUSYBOX_DEFAULT_I2CDETECT
+	bool
+	default n
+config BUSYBOX_DEFAULT_I2CTRANSFER
 	bool
 	default n
 config BUSYBOX_DEFAULT_INOTIFYD
@@ -2086,6 +2183,9 @@ config BUSYBOX_DEFAULT_MAN
 config BUSYBOX_DEFAULT_MICROCOM
 	bool
 	default n
+config BUSYBOX_DEFAULT_MIM
+	bool
+	default n
 config BUSYBOX_DEFAULT_MT
 	bool
 	default n
@@ -2113,6 +2213,9 @@ config BUSYBOX_DEFAULT_RUNLEVEL
 config BUSYBOX_DEFAULT_RX
 	bool
 	default n
+config BUSYBOX_DEFAULT_SEEDRNG
+	bool
+	default n
 config BUSYBOX_DEFAULT_SETFATTR
 	bool
 	default n
@@ -2125,6 +2228,12 @@ config BUSYBOX_DEFAULT_STRINGS
 config BUSYBOX_DEFAULT_TIME
 	bool
 	default y
+config BUSYBOX_DEFAULT_TREE
+	bool
+	default n
+config BUSYBOX_DEFAULT_TS
+	bool
+	default n
 config BUSYBOX_DEFAULT_TTYSIZE
 	bool
 	default n
@@ -2155,6 +2264,9 @@ config BUSYBOX_DEFAULT_VOLNAME
 config BUSYBOX_DEFAULT_WATCHDOG
 	bool
 	default n
+config BUSYBOX_DEFAULT_FEATURE_WATCHDOG_OPEN_TWICE
+	bool
+	default n
 config BUSYBOX_DEFAULT_FEATURE_IPV6
 	bool
 	default y if IPV6
@@ -2164,10 +2276,19 @@ config BUSYBOX_DEFAULT_FEATURE_UNIX_LOCAL
 	default n
 config BUSYBOX_DEFAULT_FEATURE_PREFER_IPV4_ADDRESS
 	bool
-	default y
+	default n
 config BUSYBOX_DEFAULT_VERBOSE_RESOLUTION_ERRORS
 	bool
 	default y
+config BUSYBOX_DEFAULT_FEATURE_ETC_NETWORKS
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_ETC_SERVICES
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_HWIB
+	bool
+	default n
 config BUSYBOX_DEFAULT_FEATURE_TLS_SHA1
 	bool
 	default n
@@ -2222,6 +2343,9 @@ config BUSYBOX_DEFAULT_DNSDOMAINNAME
 config BUSYBOX_DEFAULT_HTTPD
 	bool
 	default n
+config BUSYBOX_DEFAULT_FEATURE_HTTPD_PORT_DEFAULT
+	int
+	default 80
 config BUSYBOX_DEFAULT_FEATURE_HTTPD_RANGES
 	bool
 	default n
@@ -2253,6 +2377,18 @@ config BUSYBOX_DEFAULT_FEATURE_HTTPD_PROXY
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_HTTPD_GZIP
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_HTTPD_ETAG
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_HTTPD_LAST_MODIFIED
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_HTTPD_DATE
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_HTTPD_ACL_IP
 	bool
 	default n
 config BUSYBOX_DEFAULT_IFCONFIG
@@ -2351,6 +2487,9 @@ config BUSYBOX_DEFAULT_FEATURE_IP_ADDRESS
 config BUSYBOX_DEFAULT_FEATURE_IP_LINK
 	bool
 	default y
+config BUSYBOX_DEFAULT_FEATURE_IP_LINK_CAN
+	bool
+	default n
 config BUSYBOX_DEFAULT_FEATURE_IP_ROUTE
 	bool
 	default y
@@ -2419,17 +2558,11 @@ config BUSYBOX_DEFAULT_FEATURE_NETSTAT_PRG
 	default y
 config BUSYBOX_DEFAULT_NSLOOKUP
 	bool
-	default n
+	default y
 config BUSYBOX_DEFAULT_FEATURE_NSLOOKUP_BIG
 	bool
-	default n
-config BUSYBOX_DEFAULT_FEATURE_NSLOOKUP_LONG_OPTIONS
-	bool
-	default n
-config BUSYBOX_DEFAULT_NSLOOKUP_OPENWRT
-	bool
 	default y
-config BUSYBOX_DEFAULT_FEATURE_NSLOOKUP_OPENWRT_LONG_OPTIONS
+config BUSYBOX_DEFAULT_FEATURE_NSLOOKUP_LONG_OPTIONS
 	bool
 	default n
 config BUSYBOX_DEFAULT_NTPD
@@ -2465,6 +2598,9 @@ config BUSYBOX_DEFAULT_SLATTACH
 config BUSYBOX_DEFAULT_SSL_CLIENT
 	bool
 	default n
+config BUSYBOX_DEFAULT_SSL_SERVER
+	bool
+	default n
 config BUSYBOX_DEFAULT_TC
 	bool
 	default n
@@ -2492,9 +2628,15 @@ config BUSYBOX_DEFAULT_FEATURE_TELNET_WIDTH
 config BUSYBOX_DEFAULT_TELNETD
 	bool
 	default n
+config BUSYBOX_DEFAULT_FEATURE_TELNETD_SELFTEST_DEBUG
+	bool
+	default n
 config BUSYBOX_DEFAULT_FEATURE_TELNETD_STANDALONE
 	bool
 	default n
+config BUSYBOX_DEFAULT_FEATURE_TELNETD_PORT_DEFAULT
+	int
+	default 23
 config BUSYBOX_DEFAULT_FEATURE_TELNETD_INETD_WAIT
 	bool
 	default n
@@ -2502,6 +2644,9 @@ config BUSYBOX_DEFAULT_TFTP
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_TFTP_PROGRESS_BAR
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_TFTP_HPA_COMPAT
 	bool
 	default n
 config BUSYBOX_DEFAULT_TFTPD
@@ -2552,6 +2697,9 @@ config BUSYBOX_DEFAULT_FEATURE_WGET_LONG_OPTIONS
 config BUSYBOX_DEFAULT_FEATURE_WGET_STATUSBAR
 	bool
 	default n
+config BUSYBOX_DEFAULT_FEATURE_WGET_FTP
+	bool
+	default n
 config BUSYBOX_DEFAULT_FEATURE_WGET_AUTHENTICATION
 	bool
 	default n
@@ -2571,6 +2719,9 @@ config BUSYBOX_DEFAULT_ZCIP
 	bool
 	default n
 config BUSYBOX_DEFAULT_UDHCPD
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_UDHCPD_BOOTP
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_UDHCPD_BASE_IP_ON_MAC
@@ -2600,6 +2751,9 @@ config BUSYBOX_DEFAULT_FEATURE_UDHCPC_SANITIZEOPT
 config BUSYBOX_DEFAULT_UDHCPC_DEFAULT_SCRIPT
 	string
 	default "/usr/share/udhcpc/default.script"
+config BUSYBOX_DEFAULT_UDHCPC6_DEFAULT_SCRIPT
+	string
+	default ""
 config BUSYBOX_DEFAULT_UDHCPC6
 	bool
 	default n
@@ -2615,6 +2769,9 @@ config BUSYBOX_DEFAULT_FEATURE_UDHCPC6_RFC4833
 config BUSYBOX_DEFAULT_FEATURE_UDHCPC6_RFC5970
 	bool
 	default n
+config BUSYBOX_DEFAULT_UDHCPC_DEFAULT_INTERFACE
+	string
+	default ""
 config BUSYBOX_DEFAULT_FEATURE_UDHCP_PORT
 	bool
 	default n
@@ -2642,6 +2799,9 @@ config BUSYBOX_DEFAULT_LPR
 config BUSYBOX_DEFAULT_LPQ
 	bool
 	default n
+config BUSYBOX_DEFAULT_FEATURE_MIME_CHARSET
+	string
+	default ""
 config BUSYBOX_DEFAULT_MAKEMIME
 	bool
 	default n
@@ -2660,9 +2820,12 @@ config BUSYBOX_DEFAULT_FEATURE_REFORMIME_COMPAT
 config BUSYBOX_DEFAULT_SENDMAIL
 	bool
 	default n
-config BUSYBOX_DEFAULT_FEATURE_MIME_CHARSET
-	string
-	default ""
+config BUSYBOX_DEFAULT_FEATURE_FAST_TOP
+	bool
+	default y
+config BUSYBOX_DEFAULT_FEATURE_SHOW_THREADS
+	bool
+	default n
 config BUSYBOX_DEFAULT_FREE
 	bool
 	default y
@@ -2774,10 +2937,10 @@ config BUSYBOX_DEFAULT_UPTIME
 config BUSYBOX_DEFAULT_FEATURE_UPTIME_UTMP_SUPPORT
 	bool
 	default n
-config BUSYBOX_DEFAULT_WATCH
+config BUSYBOX_DEFAULT_VMSTAT
 	bool
 	default n
-config BUSYBOX_DEFAULT_FEATURE_SHOW_THREADS
+config BUSYBOX_DEFAULT_WATCH
 	bool
 	default n
 config BUSYBOX_DEFAULT_CHPST
@@ -2876,6 +3039,9 @@ config BUSYBOX_DEFAULT_BASH_IS_HUSH
 config BUSYBOX_DEFAULT_BASH_IS_NONE
 	bool
 	default y
+config BUSYBOX_DEFAULT_SHELL_ASH
+	bool
+	default y
 config BUSYBOX_DEFAULT_ASH
 	bool
 	default y
@@ -2902,7 +3068,7 @@ config BUSYBOX_DEFAULT_ASH_ALIAS
 	default y
 config BUSYBOX_DEFAULT_ASH_RANDOM_SUPPORT
 	bool
-	default n
+	default y
 config BUSYBOX_DEFAULT_ASH_EXPAND_PRMT
 	bool
 	default y
@@ -2936,16 +3102,22 @@ config BUSYBOX_DEFAULT_CTTYHACK
 config BUSYBOX_DEFAULT_HUSH
 	bool
 	default n
+config BUSYBOX_DEFAULT_SHELL_HUSH
+	bool
+	default n
+config BUSYBOX_DEFAULT_HUSH_NEED_FOR_SPEED
+	bool
+	default n
 config BUSYBOX_DEFAULT_HUSH_BASH_COMPAT
 	bool
 	default n
 config BUSYBOX_DEFAULT_HUSH_BRACE_EXPANSION
 	bool
 	default n
-config BUSYBOX_DEFAULT_HUSH_LINENO_VAR
+config BUSYBOX_DEFAULT_HUSH_BASH_SOURCE_CURDIR
 	bool
 	default n
-config BUSYBOX_DEFAULT_HUSH_BASH_SOURCE_CURDIR
+config BUSYBOX_DEFAULT_HUSH_LINENO_VAR
 	bool
 	default n
 config BUSYBOX_DEFAULT_HUSH_INTERACTIVE
@@ -2969,7 +3141,13 @@ config BUSYBOX_DEFAULT_HUSH_LOOPS
 config BUSYBOX_DEFAULT_HUSH_CASE
 	bool
 	default n
+config BUSYBOX_DEFAULT_HUSH_ALIAS
+	bool
+	default n
 config BUSYBOX_DEFAULT_HUSH_FUNCTIONS
+	bool
+	default n
+config BUSYBOX_DEFAULT_HUSH_FUNCTION_KEYWORD
 	bool
 	default n
 config BUSYBOX_DEFAULT_HUSH_LOCAL
@@ -3047,6 +3225,9 @@ config BUSYBOX_DEFAULT_FEATURE_SH_MATH
 config BUSYBOX_DEFAULT_FEATURE_SH_MATH_64
 	bool
 	default y
+config BUSYBOX_DEFAULT_FEATURE_SH_MATH_BASE
+	bool
+	default n
 config BUSYBOX_DEFAULT_FEATURE_SH_EXTRA_QUIET
 	bool
 	default n
@@ -3093,6 +3274,9 @@ config BUSYBOX_DEFAULT_FEATURE_SYSLOGD_DUP
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_SYSLOGD_CFG
+	bool
+	default n
+config BUSYBOX_DEFAULT_FEATURE_SYSLOGD_PRECISE_TIMESTAMPS
 	bool
 	default n
 config BUSYBOX_DEFAULT_FEATURE_SYSLOGD_READ_BUFFER_SIZE

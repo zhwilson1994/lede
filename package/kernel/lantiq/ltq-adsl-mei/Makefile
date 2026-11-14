@@ -8,7 +8,6 @@ include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=ltq-adsl-mei
 PKG_RELEASE:=1
-PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/ltq-adsl-mei-$(BUILD_VARIANT)/
 
 PKG_MAINTAINER:=John Crispin <john@phrozen.org>
 PKG_CHECK_FORMAT_SECURITY:=0
@@ -20,7 +19,6 @@ define KernelPackage/ltq-adsl-mei-template
   CATEGORY:=Kernel modules
   SUBMENU:=Network Devices
   TITLE:=mei driver for $(1)
-  URL:=http://www.lantiq.com/
   VARIANT:=$(1)
   DEPENDS:=@$(2)
   FILES:=$(PKG_BUILD_DIR)/drv_mei_cpe.ko

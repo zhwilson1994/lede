@@ -1,8 +1,8 @@
 BOARDNAME := Generic devices with NAND flash
 
-FEATURES += squashfs nand
+FEATURES += nand
 
-DEFAULT_PACKAGES += wpad
+DEFAULT_PACKAGES += wpad-basic-mbedtls
 
 define Target/Description
 	Firmware for boards using Qualcomm Atheros, MIPS-based SoCs

@@ -34,12 +34,12 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <linux/ioctl.h>
+#include <linux/platform_device.h>
 #include <asm/delay.h>
 
 /*
@@ -83,7 +83,7 @@
  */
 static inline void init_pmu(void);
 static inline void uninit_pmu(void);
-static inline void reset_ppe(void);
+static inline void reset_ppe(struct platform_device *pdev);
 static inline void init_ema(void);
 static inline void init_mailbox(void);
 static inline void clear_share_buffer(void);
@@ -125,7 +125,7 @@ static inline void uninit_pmu(void)
 {
 }
 
-static inline void reset_ppe(void)
+static inline void reset_ppe(struct platform_device *pdev)
 {
 #ifdef MODULE
     //  reset PPE
@@ -158,12 +158,12 @@ static inline void clear_share_buffer(void)
         IFX_REG_W32(0, p++);
 }
 
-static inline int pp32_download_code(u32 *code_src, unsigned int code_dword_len, u32 *data_src, unsigned int data_dword_len)
+static inline int pp32_download_code(const u32 *code_src, unsigned int code_dword_len, const u32 *data_src, unsigned int data_dword_len)
 {
     volatile u32 *dest;
 
-    if ( code_src == 0 || ((unsigned long)code_src & 0x03) != 0
-        || data_src == 0 || ((unsigned long)data_src & 0x03) != 0 )
+    if (!code_src || ((unsigned long)code_src & 0x03) != 0
+        || !data_src || ((unsigned long)data_src & 0x03) != 0 )
         return -1;
 
     if ( code_dword_len <= CDM_CODE_MEMORYn_DWLEN(0) )
@@ -184,7 +184,7 @@ static inline int pp32_download_code(u32 *code_src, unsigned int code_dword_len,
     return 0;
 }
 
-void ar9_fw_ver(unsigned int *major, unsigned int *minor)
+static void ar9_fw_ver(unsigned int *major, unsigned int *minor)
 {
     ASSERT(major != NULL, "pointer is NULL");
     ASSERT(minor != NULL, "pointer is NULL");
@@ -193,16 +193,18 @@ void ar9_fw_ver(unsigned int *major, unsigned int *minor)
     *minor = FW_VER_ID->minor;
 }
 
-void ar9_init(void)
+static int ar9_init(struct platform_device *pdev)
 {
 	init_pmu();
-	reset_ppe();
+	reset_ppe(pdev);
 	init_ema();
 	init_mailbox();
 	clear_share_buffer();
+
+	return 0;
 }
 
-void ar9_shutdown(void)
+static void ar9_shutdown(void)
 {
 	ltq_pmu_disable(IFX_PMU_MODULE_PPE_SLL01 |
 		IFX_PMU_MODULE_PPE_TC |
@@ -212,7 +214,7 @@ void ar9_shutdown(void)
 		IFX_PMU_MODULE_DSL_DFE);
 }
 
-int ar9_start(int pp32)
+static int ar9_start(int pp32)
 {
 	int ret;
 
@@ -228,7 +230,7 @@ int ar9_start(int pp32)
 	return 0;
 }
 
-void ar9_stop(int pp32)
+static void ar9_stop(int pp32)
 {
 	IFX_REG_W32(DBG_CTRL_STOP, PP32_DBG_CTRL(0));
 }

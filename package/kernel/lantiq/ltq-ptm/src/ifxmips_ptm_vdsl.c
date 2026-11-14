@@ -21,7 +21,6 @@
 ** 07 JUL 2009  Xu Liang        Init Version
 *******************************************************************************/
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -33,6 +32,9 @@
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
+#include <linux/of_net.h>
 
 #include "ifxmips_ptm_vdsl.h"
 #include <lantiq_soc.h>
@@ -67,18 +69,15 @@ unsigned long cgu_get_pp32_clock(void)
 	return rate;
 }
 
-static void ptm_setup(struct net_device *, int);
+static int ptm_setup(struct device_node* np, struct net_device *, int);
 static struct net_device_stats *ptm_get_stats(struct net_device *);
 static int ptm_open(struct net_device *);
 static int ptm_stop(struct net_device *);
   static unsigned int ptm_poll(int, unsigned int);
   static int ptm_napi_poll(struct napi_struct *, int);
 static int ptm_hard_start_xmit(struct sk_buff *, struct net_device *);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
-static int ptm_change_mtu(struct net_device *, int);
-#endif
-static int ptm_ioctl(struct net_device *, struct ifreq *, int);
-static void ptm_tx_timeout(struct net_device *);
+static int ptm_ioctl(struct net_device *, struct ifreq *, void __user *, int);
+static void ptm_tx_timeout(struct net_device *, unsigned int txqueue);
 
 static inline struct sk_buff* alloc_skb_rx(void);
 static inline struct sk_buff* alloc_skb_tx(unsigned int);
@@ -117,10 +116,7 @@ static struct net_device_ops g_ptm_netdev_ops = {
     .ndo_start_xmit      = ptm_hard_start_xmit,
     .ndo_validate_addr   = eth_validate_addr,
     .ndo_set_mac_address = eth_mac_addr,
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
-    .ndo_change_mtu      = ptm_change_mtu,
-#endif
-    .ndo_do_ioctl        = ptm_ioctl,
+    .ndo_siocdevprivate  = ptm_ioctl,
     .ndo_tx_timeout      = ptm_tx_timeout,
 };
 
@@ -129,7 +125,7 @@ static char *g_net_dev_name[1] = {"dsl0"};
 
 static int g_ptm_prio_queue_map[8];
 
-static DECLARE_TASKLET(g_swap_desc_tasklet, do_swap_desc_tasklet, 0);
+static DECLARE_TASKLET_OLD(g_swap_desc_tasklet, do_swap_desc_tasklet);
 
 
 unsigned int ifx_ptm_dbg_enable = DBG_ENABLE_MASK_ERR;
@@ -140,30 +136,39 @@ unsigned int ifx_ptm_dbg_enable = DBG_ENABLE_MASK_ERR;
  * ####################################
  */
 
-static void ptm_setup(struct net_device *dev, int ndev)
+static int ptm_setup(struct device_node *np, struct net_device *dev, int ndev)
 {
+    u8 addr[ETH_ALEN];
+    int err;
+
     netif_carrier_off(dev);
 
     dev->netdev_ops      = &g_ptm_netdev_ops;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0))
     /* Allow up to 1508 bytes, for RFC4638 */
     dev->max_mtu         = ETH_DATA_LEN + 8;
-#endif
-    netif_napi_add(dev, &g_ptm_priv_data.itf[ndev].napi, ptm_napi_poll, 16);
+    netif_napi_add_weight(dev, &g_ptm_priv_data.itf[ndev].napi, ptm_napi_poll, 16);
     dev->watchdog_timeo  = ETH_WATCHDOG_TIMEOUT;
 
-    dev->dev_addr[0] = 0x00;
-    dev->dev_addr[1] = 0x20;
-	dev->dev_addr[2] = 0xda;
-	dev->dev_addr[3] = 0x86;
-	dev->dev_addr[4] = 0x23;
-	dev->dev_addr[5] = 0x75 + ndev;
+    err = of_get_ethdev_address(np, dev);
+    if (err == -EPROBE_DEFER)
+        return err;
+    if (err) {
+        addr[0] = 0x00;
+        addr[1] = 0x20;
+        addr[2] = 0xda;
+        addr[3] = 0x86;
+        addr[4] = 0x23;
+        addr[5] = 0x75 + ndev;
+        eth_hw_addr_set(dev, addr);
+    }
+
+    return 0;
 }
 
 static struct net_device_stats *ptm_get_stats(struct net_device *dev)
 {
    struct net_device_stats *s;
-  
+
     if ( dev != g_net_dev[0] )
         return NULL;
 s = &g_ptm_priv_data.itf[0].stats;
@@ -225,10 +230,6 @@ static unsigned int ptm_poll(int ndev, unsigned int work_to_do)
             //  parse protocol header
             skb->dev = g_net_dev[0];
             skb->protocol = eth_type_trans(skb, skb->dev);
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,11,0))
-            g_net_dev[0]->last_rx = jiffies;
-#endif
 
             netif_receive_skb(skb);
 
@@ -299,11 +300,7 @@ static int ptm_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
     /*  allocate descriptor */
     desc_base = get_tx_desc(0, &f_full);
     if ( f_full ) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,7,0)
         netif_trans_update(dev);
-#else
-        dev->trans_start = jiffies;
-#endif
         netif_stop_queue(dev);
 
         IFX_REG_W32_MASK(0, 1 << 17, MBOX_IGU1_ISRC);
@@ -334,6 +331,9 @@ static int ptm_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
         dma_cache_wback((unsigned long)skb->data, skb->len);
     }
 
+    /* make the skb unowned */
+    skb_orphan(skb);
+
     *(struct sk_buff **)((unsigned int)skb->data - byteoff - sizeof(struct sk_buff *)) = skb;
     /*  write back to physical memory   */
     dma_cache_wback((unsigned long)skb->data - byteoff - sizeof(struct sk_buff *), skb->len + byteoff + sizeof(struct sk_buff *));
@@ -362,11 +362,7 @@ static int ptm_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
     wmb();
     *(volatile unsigned int *)desc = *(unsigned int *)&reg_desc;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,7,0)
     netif_trans_update(dev);
-#else
-    dev->trans_start = jiffies;
-#endif
 
     return 0;
 
@@ -377,73 +373,84 @@ PTM_HARD_START_XMIT_FAIL:
     return 0;
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,10,0))
-static int ptm_change_mtu(struct net_device *dev, int mtu)
-{
-	/* Allow up to 1508 bytes, for RFC4638 */
-        if (mtu < 68 || mtu > ETH_DATA_LEN + 8)
-                return -EINVAL;
-        dev->mtu = mtu;
-        return 0;
-}
-#endif
-
-static int ptm_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int ptm_ioctl(struct net_device *dev, struct ifreq *ifr, void __user *data, int cmd)
 {
     ASSERT(dev == g_net_dev[0], "incorrect device");
+
+    if (!capable(CAP_NET_ADMIN))
+        return -EPERM;
 
     switch ( cmd )
     {
     case IFX_PTM_MIB_CW_GET:
-	((PTM_CW_IF_ENTRY_T *)ifr->ifr_data)->ifRxNoIdleCodewords   = IFX_REG_R32(DREG_AR_CELL0) + IFX_REG_R32(DREG_AR_CELL1);
-        ((PTM_CW_IF_ENTRY_T *)ifr->ifr_data)->ifRxIdleCodewords     = IFX_REG_R32(DREG_AR_IDLE_CNT0) + IFX_REG_R32(DREG_AR_IDLE_CNT1);
-        ((PTM_CW_IF_ENTRY_T *)ifr->ifr_data)->ifRxCodingViolation   = IFX_REG_R32(DREG_AR_CVN_CNT0) + IFX_REG_R32(DREG_AR_CVN_CNT1) + IFX_REG_R32(DREG_AR_CVNP_CNT0) + IFX_REG_R32(DREG_AR_CVNP_CNT1);
-        ((PTM_CW_IF_ENTRY_T *)ifr->ifr_data)->ifTxNoIdleCodewords   = IFX_REG_R32(DREG_AT_CELL0) + IFX_REG_R32(DREG_AT_CELL1);
-        ((PTM_CW_IF_ENTRY_T *)ifr->ifr_data)->ifTxIdleCodewords     = IFX_REG_R32(DREG_AT_IDLE_CNT0) + IFX_REG_R32(DREG_AT_IDLE_CNT1);
+        {
+            PTM_CW_IF_ENTRY_T tmp = {0};
+
+            tmp.ifRxNoIdleCodewords   = IFX_REG_R32(DREG_AR_CELL0) + IFX_REG_R32(DREG_AR_CELL1);
+            tmp.ifRxIdleCodewords     = IFX_REG_R32(DREG_AR_IDLE_CNT0) + IFX_REG_R32(DREG_AR_IDLE_CNT1);
+            tmp.ifRxCodingViolation   = IFX_REG_R32(DREG_AR_CVN_CNT0) + IFX_REG_R32(DREG_AR_CVN_CNT1) + IFX_REG_R32(DREG_AR_CVNP_CNT0) + IFX_REG_R32(DREG_AR_CVNP_CNT1);
+            tmp.ifTxNoIdleCodewords   = IFX_REG_R32(DREG_AT_CELL0) + IFX_REG_R32(DREG_AT_CELL1);
+            tmp.ifTxIdleCodewords     = IFX_REG_R32(DREG_AT_IDLE_CNT0) + IFX_REG_R32(DREG_AT_IDLE_CNT1);
+
+            if (copy_to_user(data, &tmp, sizeof(tmp)))
+                return -EFAULT;
+        }
         break;
     case IFX_PTM_MIB_FRAME_GET:
 	{
-            PTM_FRAME_MIB_T data = {0};
+            PTM_FRAME_MIB_T tmp = {0};
             int i;
 
-            data.RxCorrect = IFX_REG_R32(DREG_AR_HEC_CNT0) + IFX_REG_R32(DREG_AR_HEC_CNT1) + IFX_REG_R32(DREG_AR_AIIDLE_CNT0) + IFX_REG_R32(DREG_AR_AIIDLE_CNT1);
+            tmp.RxCorrect = IFX_REG_R32(DREG_AR_HEC_CNT0) + IFX_REG_R32(DREG_AR_HEC_CNT1) + IFX_REG_R32(DREG_AR_AIIDLE_CNT0) + IFX_REG_R32(DREG_AR_AIIDLE_CNT1);
             for ( i = 0; i < 4; i++ )
-                data.RxDropped += WAN_RX_MIB_TABLE(i)->wrx_dropdes_pdu;
+                tmp.RxDropped += WAN_RX_MIB_TABLE(i)->wrx_dropdes_pdu;
             for ( i = 0; i < 8; i++ )
-                data.TxSend    += WAN_TX_MIB_TABLE(i)->wtx_total_pdu;
+                tmp.TxSend    += WAN_TX_MIB_TABLE(i)->wtx_total_pdu;
 
-            *((PTM_FRAME_MIB_T *)ifr->ifr_data) = data;
+            if (copy_to_user(data, &tmp, sizeof(tmp)))
+                return -EFAULT;
         }
         break;
     case IFX_PTM_CFG_GET:
-	//  use bear channel 0 preemption gamma interface settings
-        ((IFX_PTM_CFG_T *)ifr->ifr_data)->RxEthCrcPresent = 1;
-        ((IFX_PTM_CFG_T *)ifr->ifr_data)->RxEthCrcCheck   = RX_GAMMA_ITF_CFG(0)->rx_eth_fcs_ver_dis == 0 ? 1 : 0;
-        ((IFX_PTM_CFG_T *)ifr->ifr_data)->RxTcCrcCheck    = RX_GAMMA_ITF_CFG(0)->rx_tc_crc_ver_dis == 0 ? 1 : 0;;
-        ((IFX_PTM_CFG_T *)ifr->ifr_data)->RxTcCrcLen      = RX_GAMMA_ITF_CFG(0)->rx_tc_crc_size == 0 ? 0 : (RX_GAMMA_ITF_CFG(0)->rx_tc_crc_size * 16);
-        ((IFX_PTM_CFG_T *)ifr->ifr_data)->TxEthCrcGen     = TX_GAMMA_ITF_CFG(0)->tx_eth_fcs_gen_dis == 0 ? 1 : 0;
-        ((IFX_PTM_CFG_T *)ifr->ifr_data)->TxTcCrcGen      = TX_GAMMA_ITF_CFG(0)->tx_tc_crc_size == 0 ? 0 : 1;
-        ((IFX_PTM_CFG_T *)ifr->ifr_data)->TxTcCrcLen      = TX_GAMMA_ITF_CFG(0)->tx_tc_crc_size == 0 ? 0 : (TX_GAMMA_ITF_CFG(0)->tx_tc_crc_size * 16);
+        {
+            IFX_PTM_CFG_T tmp = {0};
+
+            //  use bear channel 0 preemption gamma interface settings
+            tmp.RxEthCrcPresent = 1;
+            tmp.RxEthCrcCheck   = RX_GAMMA_ITF_CFG(0)->rx_eth_fcs_ver_dis == 0 ? 1 : 0;
+            tmp.RxTcCrcCheck    = RX_GAMMA_ITF_CFG(0)->rx_tc_crc_ver_dis == 0 ? 1 : 0;
+            tmp.RxTcCrcLen      = RX_GAMMA_ITF_CFG(0)->rx_tc_crc_size == 0 ? 0 : (RX_GAMMA_ITF_CFG(0)->rx_tc_crc_size * 16);
+            tmp.TxEthCrcGen     = TX_GAMMA_ITF_CFG(0)->tx_eth_fcs_gen_dis == 0 ? 1 : 0;
+            tmp.TxTcCrcGen      = TX_GAMMA_ITF_CFG(0)->tx_tc_crc_size == 0 ? 0 : 1;
+            tmp.TxTcCrcLen      = TX_GAMMA_ITF_CFG(0)->tx_tc_crc_size == 0 ? 0 : (TX_GAMMA_ITF_CFG(0)->tx_tc_crc_size * 16);
+
+            if (copy_to_user(data, &tmp, sizeof(tmp)))
+                return -EFAULT;
+        }
         break;
     case IFX_PTM_CFG_SET:
 	{
+            IFX_PTM_CFG_T cfg;
             int i;
 
+            if (copy_from_user(&cfg, data, sizeof(cfg)))
+                return -EFAULT;
+
             for ( i = 0; i < 4; i++ ) {
-                RX_GAMMA_ITF_CFG(i)->rx_eth_fcs_ver_dis = ((IFX_PTM_CFG_T *)ifr->ifr_data)->RxEthCrcCheck ? 0 : 1;
+                RX_GAMMA_ITF_CFG(i)->rx_eth_fcs_ver_dis = cfg.RxEthCrcCheck ? 0 : 1;
 
-                RX_GAMMA_ITF_CFG(0)->rx_tc_crc_ver_dis = ((IFX_PTM_CFG_T *)ifr->ifr_data)->RxTcCrcCheck ? 0 : 1;
+                RX_GAMMA_ITF_CFG(0)->rx_tc_crc_ver_dis = cfg.RxTcCrcCheck ? 0 : 1;
 
-                switch ( ((IFX_PTM_CFG_T *)ifr->ifr_data)->RxTcCrcLen ) {
+                switch ( cfg.RxTcCrcLen ) {
                     case 16: RX_GAMMA_ITF_CFG(0)->rx_tc_crc_size = 1; break;
                     case 32: RX_GAMMA_ITF_CFG(0)->rx_tc_crc_size = 2; break;
                     default: RX_GAMMA_ITF_CFG(0)->rx_tc_crc_size = 0;
                 }
 
-                TX_GAMMA_ITF_CFG(0)->tx_eth_fcs_gen_dis = ((IFX_PTM_CFG_T *)ifr->ifr_data)->TxEthCrcGen ? 0 : 1;
+                TX_GAMMA_ITF_CFG(0)->tx_eth_fcs_gen_dis = cfg.TxEthCrcGen ? 0 : 1;
 
-                if ( ((IFX_PTM_CFG_T *)ifr->ifr_data)->TxTcCrcGen ) {
-                    switch ( ((IFX_PTM_CFG_T *)ifr->ifr_data)->TxTcCrcLen ) {
+                if ( cfg.TxTcCrcGen ) {
+                    switch ( cfg.TxTcCrcLen ) {
                         case 16: TX_GAMMA_ITF_CFG(0)->tx_tc_crc_size = 1; break;
                         case 32: TX_GAMMA_ITF_CFG(0)->tx_tc_crc_size = 2; break;
                         default: TX_GAMMA_ITF_CFG(0)->tx_tc_crc_size = 0;
@@ -458,7 +465,7 @@ static int ptm_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
         {
             struct ppe_prio_q_map cmd;
 
-            if ( copy_from_user(&cmd, ifr->ifr_data, sizeof(cmd)) )
+            if ( copy_from_user(&cmd, data, sizeof(cmd)) )
                 return -EFAULT;
 
             if ( cmd.pkt_prio < 0 || cmd.pkt_prio >= ARRAY_SIZE(g_ptm_prio_queue_map) )
@@ -477,7 +484,7 @@ static int ptm_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
     return 0;
 }
 
-static void ptm_tx_timeout(struct net_device *dev)
+static void ptm_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
     ASSERT(dev == g_net_dev[0], "incorrect device");
 
@@ -571,7 +578,6 @@ static inline int get_tx_desc(unsigned int itf, unsigned int *f_full)
 static irqreturn_t mailbox_irq_handler(int irq, void *dev_id)
 {
     unsigned int isr;
-    int i;
 
     isr = IFX_REG_R32(MBOX_IGU1_ISR);
     IFX_REG_W32(isr, MBOX_IGU1_ISRC);
@@ -647,12 +653,15 @@ static void do_swap_desc_tasklet(unsigned long arg)
 static inline int ifx_ptm_version(char *buf)
 {
     int len = 0;
-    unsigned int major, minor;
+    unsigned int major, mid, minor;
 
-    ifx_ptm_get_fw_ver(&major, &minor);
+    ifx_ptm_get_fw_ver(&major, &mid, &minor);
 
-    len += sprintf(buf + len, "PTM %d.%d.%d", IFX_PTM_VER_MAJOR, IFX_PTM_VER_MID, IFX_PTM_VER_MINOR);
-    len += sprintf(buf + len, "    PTM (E1) firmware version %d.%d\n", major, minor);
+    len += ifx_drv_ver(buf + len, "PTM", IFX_PTM_VER_MAJOR, IFX_PTM_VER_MID, IFX_PTM_VER_MINOR);
+    if ( mid == ~0 )
+        len += sprintf(buf + len, "    PTM (E1) firmware version %u.%u\n", major, minor);
+    else
+        len += sprintf(buf + len, "    PTM (E1) firmware version %u.%u.%u\n", major, mid, minor);
 
     return len;
 }
@@ -971,14 +980,27 @@ static int ptm_showtime_exit(void)
 	return 0;
 }
 
+static const struct of_device_id ltq_ptm_match[] = {
+#ifdef CONFIG_DANUBE
+	{ .compatible = "lantiq,ppe-danube", .data = NULL },
+#elif defined CONFIG_AMAZON_SE
+	{ .compatible = "lantiq,ppe-ase", .data = NULL },
+#elif defined CONFIG_AR9
+	{ .compatible = "lantiq,ppe-arx100", .data = NULL },
+#elif defined CONFIG_VR9
+	{ .compatible = "lantiq,ppe-xrx200", .data = NULL },
+#endif
+	{},
+};
+MODULE_DEVICE_TABLE(of, ltq_ptm_match);
 
-
-static int ifx_ptm_init(void)
+static int ltq_ptm_probe(struct platform_device *pdev)
 {
     int ret;
     int i;
-    char ver_str[128];
+    char ver_str[256];
     struct port_cell_info port_cell = {0};
+    struct device_node *np = pdev->dev.of_node;
 
     ret = init_priv_data();
     if ( ret != 0 ) {
@@ -986,7 +1008,9 @@ static int ifx_ptm_init(void)
         goto INIT_PRIV_DATA_FAIL;
     }
 
-    ifx_ptm_init_chip();
+    ret = ifx_ptm_init_chip(pdev);
+    if (ret)
+        goto INIT_PRIV_DATA_FAIL;
     ret = init_tables();
     if ( ret != 0 ) {
         err("INIT_TABLES_FAIL");
@@ -997,7 +1021,9 @@ static int ifx_ptm_init(void)
         g_net_dev[i] = alloc_netdev(0, g_net_dev_name[i], NET_NAME_UNKNOWN, ether_setup);
         if ( g_net_dev[i] == NULL )
             goto ALLOC_NETDEV_FAIL;
-        ptm_setup(g_net_dev[i], i);
+        ret = ptm_setup(np, g_net_dev[i], i);
+        if (ret == -EPROBE_DEFER)
+            goto INIT_TABLES_FAIL;
     }
 
     for ( i = 0; i < ARRAY_SIZE(g_net_dev); i++ ) {
@@ -1006,12 +1032,14 @@ static int ifx_ptm_init(void)
             goto REGISTER_NETDEV_FAIL;
     }
 
+    g_ptm_priv_data.irq = platform_get_irq(pdev, 0);
+    if (g_ptm_priv_data.irq < 0) {
+        err("platform_get_irq fail");
+        goto REQUEST_IRQ_PPE_MAILBOX_IGU1_INT_FAIL;
+    }
+
     /*  register interrupt handler  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-    ret = request_irq(PPE_MAILBOX_IGU1_INT, mailbox_irq_handler, 0, "ptm_mailbox_isr", &g_ptm_priv_data);
-#else
-    ret = request_irq(PPE_MAILBOX_IGU1_INT, mailbox_irq_handler, IRQF_DISABLED, "ptm_mailbox_isr", &g_ptm_priv_data);
-#endif
+    ret = request_irq(g_ptm_priv_data.irq, mailbox_irq_handler, 0, "ptm_mailbox_isr", &g_ptm_priv_data);
     if ( ret ) {
         if ( ret == -EBUSY ) {
             err("IRQ may be occupied by other driver, please reconfig to disable it.");
@@ -1021,7 +1049,7 @@ static int ifx_ptm_init(void)
         }
         goto REQUEST_IRQ_PPE_MAILBOX_IGU1_INT_FAIL;
     }
-    disable_irq(PPE_MAILBOX_IGU1_INT);
+    disable_irq(g_ptm_priv_data.irq);
 
     ret = ifx_pp32_start(0);
     if ( ret ) {
@@ -1031,7 +1059,7 @@ static int ifx_ptm_init(void)
     IFX_REG_W32(1 << 16, MBOX_IGU1_IER);    //  enable SWAP interrupt
     IFX_REG_W32(~0, MBOX_IGU1_ISRC);
 
-    enable_irq(PPE_MAILBOX_IGU1_INT);
+    enable_irq(g_ptm_priv_data.irq);
 
     ifx_mei_atm_showtime_check(&g_showtime, &port_cell, &g_xdata_addr);
     if ( g_showtime ) {
@@ -1049,7 +1077,7 @@ static int ifx_ptm_init(void)
     return 0;
 
 PP32_START_FAIL:
-    free_irq(PPE_MAILBOX_IGU1_INT, &g_ptm_priv_data);
+    free_irq(g_ptm_priv_data.irq, &g_ptm_priv_data);
 REQUEST_IRQ_PPE_MAILBOX_IGU1_INT_FAIL:
     i = ARRAY_SIZE(g_net_dev);
 REGISTER_NETDEV_FAIL:
@@ -1068,7 +1096,7 @@ INIT_PRIV_DATA_FAIL:
     return ret;
 }
 
-static void __exit ifx_ptm_exit(void)
+static void ltq_ptm_remove(struct platform_device *pdev)
 {
     int i;
 	ifx_mei_atm_showtime_enter = NULL;
@@ -1077,7 +1105,7 @@ static void __exit ifx_ptm_exit(void)
 
     ifx_pp32_stop(0);
 
-    free_irq(PPE_MAILBOX_IGU1_INT, &g_ptm_priv_data);
+    free_irq(g_ptm_priv_data.irq, &g_ptm_priv_data);
 
     for ( i = 0; i < ARRAY_SIZE(g_net_dev); i++ )
         unregister_netdev(g_net_dev[i]);
@@ -1120,8 +1148,16 @@ static int __init queue_gamma_map_setup(char *line)
     return 0;
 }
 #endif
-module_init(ifx_ptm_init);
-module_exit(ifx_ptm_exit);
+static struct platform_driver ltq_ptm_driver = {
+	.probe  = ltq_ptm_probe,
+	.remove = ltq_ptm_remove,
+	.driver = {
+		.name = "ptm",
+		.of_match_table = ltq_ptm_match,
+	},
+};
+
+module_platform_driver(ltq_ptm_driver);
 #ifndef MODULE
   __setup("wanqos_en=", wanqos_en_setup);
   __setup("queue_gamma_map=", queue_gamma_map_setup);

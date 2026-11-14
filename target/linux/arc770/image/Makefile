@@ -1,9 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Copyright (C) 2016 OpenWrt.org
-#
-# This is free software, licensed under the GNU General Public License v2.
-# See /LICENSE for more information.
-#
+
 include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/image.mk
 
@@ -20,12 +18,14 @@ ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
 # Root FS built-in
 define Device/vmlinux
 	KERNEL_SUFFIX := .elf
-	KERNEL := kernel-bin | patch-dtb
+	KERNEL := kernel-bin $(if $(filter 6.18,$(KERNEL_PATCHVER)),,| patch-dtb)
 	KERNEL_INITRAMFS_NAME = vmlinux-initramfs.elf
 endef
 
 define Device/nsim
 	$(call Device/vmlinux)
+	DEVICE_VENDOR := Synopsys
+	DEVICE_MODEL := nSIM
 	DEVICE_PROFILE := nsim
 	DEVICE_DTS := nsim_700
 endef
